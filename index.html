@@ -186,10 +186,18 @@
   footer{margin-top:64px; padding-top:18px; border-top:1px solid var(--rule); color:var(--soft); font-family:var(--mono); font-size:11px; letter-spacing:.06em; display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between}
   @media (prefers-reduced-motion:reduce){ *{transition:none !important} }
 
-  /* ---------- tablet ---------- */
+  /* ---------- tablet and phones: one column ---------- */
   @media (max-width:900px){
     .anno{min-height:0}
-    .study{gap:22px}
+    /* display:contents dissolves .left so its children become grid items of .study,
+       which lets the chart be ordered below the commentary instead of splitting
+       the board from its stepper. */
+    .left{display:contents}
+    .study{grid-template-columns:1fr; gap:13px}
+    .board{order:1; justify-self:center; max-width:min(100%,66vh)}
+    .controls{order:2}
+    .anno{order:3}
+    .ribbon{order:4; margin-top:6px}
   }
 
   /* ---------- phones ----------
@@ -221,7 +229,10 @@
     /* controls: bigger text and bigger tap targets */
     .controls{gap:7px}
     .controls button{flex:1 1 auto; padding:12px 8px; font-size:14px}
-    .ply{flex-basis:100%; margin-left:0; text-align:right; font-size:14px}
+    /* The buttons grow to fill the row, so the step counter would wrap onto a second
+       line and cost ~30px. It is redundant on a phone anyway: the commentary header
+       immediately below shows the move number and whose move it is. */
+    .ply{display:none}
     .ribbon .lab{font-size:11.5px}
 
     /* scoresheet: two columns, but legible */
@@ -276,10 +287,6 @@
   <div class="study">
     <div class="left">
       <div class="board" id="board" aria-label="Chess board"></div>
-      <div class="ribbon">
-        <canvas id="ribbon" width="920" height="92" aria-label="Material balance across the game"></canvas>
-        <div class="lab"><span>Who is ahead on material</span><span id="matnow">level</span></div>
-      </div>
       <div class="controls">
         <button id="first" aria-label="First move">&#124;&laquo;</button>
         <button id="prev" aria-label="Previous move">&laquo; Prev</button>
@@ -287,9 +294,10 @@
         <button id="last" aria-label="Final position">&raquo;&#124;</button>
         <span class="ply" id="plylabel"></span>
       </div>
-      <p style="margin:0; font-family:var(--mono); font-size:11px; color:var(--soft); letter-spacing:.04em">
-        Use &larr; and &rarr; to step through the game. Each step is one player's move, so 89 steps = 45 moves.
-      </p>
+      <div class="ribbon">
+        <canvas id="ribbon" width="920" height="92" aria-label="Material balance across the game"></canvas>
+        <div class="lab"><span>Who is ahead on material</span><span id="matnow">level</span></div>
+      </div>
     </div>
 
     <div class="anno" id="anno"></div>
