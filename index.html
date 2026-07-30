@@ -1,4 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Todd vs Claude Opus 5 &mdash; annotated game</title>
+<meta name="description" content="A full game of chess played move-by-move in a chat window: Todd vs Claude Opus 5, annotated with what both players actually said.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:title" content="Todd vs Claude Opus 5 &mdash; annotated game">
+<meta property="og:description" content="A full game of chess played move-by-move in a chat window: Todd vs Claude Opus 5, annotated with what both players actually said.">
+<meta property="og:type" content="article">
+</head>
+<body>
 <style>
   :root{
     --paper:#E7EAE6; --card:#F1F3EF; --ink:#15191A; --soft:#545D5F; --rule:#C4C9C2;
@@ -30,6 +42,7 @@
   }
 
   *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%; text-size-adjust:100%}
   body{
     margin:0; background:var(--paper); color:var(--ink);
     font-family:var(--serif); font-size:17px; line-height:1.6;
@@ -173,28 +186,68 @@
   footer{margin-top:64px; padding-top:18px; border-top:1px solid var(--rule); color:var(--soft); font-family:var(--mono); font-size:11px; letter-spacing:.06em; display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between}
   @media (prefers-reduced-motion:reduce){ *{transition:none !important} }
 
-  /* ---------- mobile ---------- */
+  /* ---------- tablet ---------- */
   @media (max-width:900px){
     .anno{min-height:0}
     .study{gap:22px}
   }
+
+  /* ---------- phones ----------
+     Type gets BIGGER here, not smaller: a phone is held closer but has far less
+     width, and the utility/mono labels are the first thing to become unreadable. */
   @media (max-width:640px){
-    body{font-size:16px}
-    .wrap{padding:18px 16px 56px}
-    .eyebrow{font-size:10px; gap:8px 12px}
+    body{font-size:18px; line-height:1.62}
+    .wrap{padding:18px 17px 56px}
+    .mast{gap:12px}
+    .eyebrow{font-size:12px; letter-spacing:.1em; gap:8px 12px}
     .eyebrow #theme{margin-left:0}
-    .mast{gap:11px}
-    .anno-head{gap:8px}
-    .san{font-size:26px}
-    .controls button{flex:1 1 auto; padding:9px 8px}
-    .ply{flex-basis:100%; margin-left:0; text-align:right}
-    .sheet{grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:2px 12px; font-size:12.5px}
-    .jumps{gap:5px}
-    .jumps button{font-size:10.5px; padding:6px 8px}
-    .card{padding:15px 16px}
-    .ledger .item{padding:12px 0}
-    footer{flex-direction:column; gap:6px}
+    .result-tag{font-size:12px}
+    .standfirst{font-size:18px}
+    h2{font-size:25px}
+    .sub{font-size:17px}
+
+    /* annotation column */
+    .anno{gap:14px}
+    .anno-head{gap:9px}
+    .san{font-size:31px}
+    .movenum{font-size:15px}
+    .side{font-size:12px; letter-spacing:.1em}
+    .chip{font-size:11px}
+    .anno h3{font-size:21px}
+    .anno p{font-size:18px}
+    .who{font-size:12px}
+    .quote{padding-left:12px}
+
+    /* controls: bigger text and bigger tap targets */
+    .controls{gap:7px}
+    .controls button{flex:1 1 auto; padding:12px 8px; font-size:14px}
+    .ply{flex-basis:100%; margin-left:0; text-align:right; font-size:14px}
+    .ribbon .lab{font-size:11.5px}
+
+    /* scoresheet: two columns, but legible */
+    .sheet{grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:3px 14px; font-size:15px}
+    .sheet .row{grid-template-columns:34px 1fr 1fr}
+    .sheet .n{font-size:13px}
+    .sheet a{padding:3px 5px}
+
+    .jumps{gap:6px}
+    .jumps button{font-size:12px; padding:9px 10px}
+
+    .card{padding:16px 17px; gap:9px}
+    .card .k{font-size:11.5px}
+    .card h4{font-size:19px}
+    .card p{font-size:17px}
+
+    .ledger .item{padding:14px 0; gap:6px}
+    .ledger .at{font-size:12.5px}
+    .ledger p{font-size:17px}
+
+    footer{flex-direction:column; gap:6px; font-size:12.5px}
     section{margin-top:48px}
+  }
+  @media (max-width:400px){
+    /* one column of moves rather than two cramped ones */
+    .sheet{grid-template-columns:1fr; font-size:16px}
   }
 </style>
 
@@ -801,3 +854,6 @@ themeBtn.onclick=()=>{
 
 drawSheet(); go(0);
 </script>
+
+</body>
+</html>
