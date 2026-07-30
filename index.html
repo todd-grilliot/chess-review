@@ -1,0 +1,803 @@
+<title>Todd vs Claude Opus 5 &mdash; annotated game</title>
+<style>
+  :root{
+    --paper:#E7EAE6; --card:#F1F3EF; --ink:#15191A; --soft:#545D5F; --rule:#C4C9C2;
+    --accent:#1F5E5B; --accent-weak:rgba(31,94,91,.10);
+    --good:#3E6B39; --warn:#8E6412; --bad:#8C3A31;
+    --sq-l:#D9D5CB; --sq-d:#6D7A72; --pc-w:#FBFAF6; --pc-w-line:#4A5250; --pc-b:#191D1E;
+    --serif: ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --mono: ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#101314; --card:#171B1C; --ink:#E4E7E3; --soft:#949E9C; --rule:#262B2C;
+      --accent:#63B6AF; --accent-weak:rgba(99,182,175,.12);
+      --good:#7FB56F; --warn:#CFA24C; --bad:#D97060;
+      --sq-l:#C9C6BC; --sq-d:#5A655E; --pc-w:#F6F4EE; --pc-w-line:#3A403F; --pc-b:#14181A;
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#101314; --card:#171B1C; --ink:#E4E7E3; --soft:#949E9C; --rule:#262B2C;
+    --accent:#63B6AF; --accent-weak:rgba(99,182,175,.12);
+    --good:#7FB56F; --warn:#CFA24C; --bad:#D97060;
+    --sq-l:#C9C6BC; --sq-d:#5A655E; --pc-w:#F6F4EE; --pc-w-line:#3A403F; --pc-b:#14181A;
+  }
+  :root[data-theme="light"]{
+    --paper:#E7EAE6; --card:#F1F3EF; --ink:#15191A; --soft:#545D5F; --rule:#C4C9C2;
+    --accent:#1F5E5B; --accent-weak:rgba(31,94,91,.10);
+    --good:#3E6B39; --warn:#8E6412; --bad:#8C3A31;
+    --sq-l:#D9D5CB; --sq-d:#6D7A72; --pc-w:#FBFAF6; --pc-w-line:#4A5250; --pc-b:#191D1E;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--serif); font-size:17px; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:clamp(20px,4vw,56px) clamp(16px,4vw,40px) 80px}
+
+  /* ---------- masthead ---------- */
+  .mast{border-bottom:2px solid var(--ink); padding-bottom:18px; display:grid; gap:14px}
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--soft); display:flex; flex-wrap:wrap; gap:14px; align-items:center;
+  }
+  h1{
+    margin:0; font-size:clamp(30px,5.2vw,50px); line-height:1.05; font-weight:600;
+    letter-spacing:-.015em; text-wrap:balance;
+  }
+  h1 .vs{color:var(--soft); font-style:italic; font-weight:400}
+  .standfirst{margin:0; max-width:64ch; color:var(--soft); font-size:clamp(16px,2vw,19px)}
+  .standfirst b{color:var(--ink); font-weight:600}
+  .result-tag{
+    font-family:var(--mono); font-size:11px; letter-spacing:.1em; padding:3px 8px;
+    border:1px solid var(--ink); color:var(--ink); text-transform:uppercase;
+  }
+
+  /* ---------- study layout ---------- */
+  .study{display:grid; grid-template-columns:minmax(0,460px) minmax(0,1fr); gap:clamp(24px,4vw,48px); margin-top:36px; align-items:start}
+  @media (max-width:900px){ .study{grid-template-columns:1fr} }
+  .left{position:sticky; top:24px; display:grid; gap:14px}
+  @media (max-width:900px){ .left{position:static} }
+
+  /* board */
+  .board{
+    display:grid;
+    grid-template-columns:repeat(8,1fr);
+    grid-template-rows:repeat(8,1fr);   /* without this, empty ranks collapse to nothing */
+    aspect-ratio:1; width:100%;
+    border:1px solid var(--ink);
+    container-type:inline-size;
+  }
+  .sq{position:relative; display:flex; align-items:center; justify-content:center; min-width:0; min-height:0}
+  .sq.l{background:var(--sq-l)} .sq.d{background:var(--sq-d)}
+  .sq.hl::before{content:""; position:absolute; inset:0; background:var(--accent); opacity:.30}
+  .sq .co{
+    position:absolute; font-family:var(--mono); font-size:9px; letter-spacing:.04em;
+    color:var(--ink); opacity:.5;
+  }
+  .co.f{bottom:2px; right:3px} .co.r{top:2px; left:3px}
+  .sq.d .co{color:var(--sq-l); opacity:.75}
+  .pc{
+    position:relative; z-index:2; line-height:1; user-select:none;
+    font-size:min(8vw,40px);            /* fallback */
+  }
+  @supports (container-type:inline-size){
+    .pc{ font-size:11.4cqw; }           /* scales with the board, not the viewport */
+  }
+  .pc.w{color:var(--pc-w); -webkit-text-stroke:1.1px var(--pc-w-line); text-shadow:0 1px 1px rgba(0,0,0,.18)}
+  .pc.b{color:var(--pc-b); -webkit-text-stroke:.6px var(--pc-b)}
+
+  /* material ribbon */
+  .ribbon{display:grid; gap:5px}
+  .ribbon canvas{width:100%; height:46px; display:block; border:1px solid var(--rule); background:var(--card)}
+  .ribbon .lab{
+    display:flex; justify-content:space-between; font-family:var(--mono);
+    font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--soft);
+  }
+
+  /* controls */
+  .controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  button{
+    font-family:var(--mono); font-size:12px; letter-spacing:.06em; text-transform:uppercase;
+    background:transparent; color:var(--ink); border:1px solid var(--ink);
+    padding:7px 12px; cursor:pointer; transition:background .15s, color .15s;
+  }
+  button:hover{background:var(--ink); color:var(--paper)}
+  button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  button[disabled]{opacity:.35; cursor:default} button[disabled]:hover{background:transparent; color:var(--ink)}
+  .ply{font-family:var(--mono); font-size:12px; color:var(--soft); margin-left:auto; font-variant-numeric:tabular-nums}
+
+  /* ---------- annotation ---------- */
+  .anno{display:grid; gap:16px; min-height:420px; align-content:start}
+  .anno-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; border-bottom:1px solid var(--rule); padding-bottom:10px}
+  .movenum{font-family:var(--mono); font-size:13px; color:var(--soft); font-variant-numeric:tabular-nums}
+  .san{font-family:var(--mono); font-size:clamp(22px,3.4vw,30px); font-weight:600; letter-spacing:-.01em}
+  .side{font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--soft)}
+  .chip{
+    font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+    padding:3px 7px; border:1px solid currentColor;
+  }
+  .chip.error{color:var(--bad)} .chip.key{color:var(--warn)} .chip.good{color:var(--good)} .chip.tool{color:var(--accent)}
+  .anno h3{margin:0; font-size:20px; font-weight:600; letter-spacing:-.01em; text-wrap:balance}
+  .anno p{margin:0; max-width:66ch}
+  .anno .quote{
+    display:grid; gap:5px; border-left:2px solid var(--accent); padding:2px 0 2px 14px; background:var(--accent-weak);
+    padding-right:12px; padding-top:8px; padding-bottom:8px;
+  }
+  .who{font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent)}
+  .quote p{font-style:italic}
+  code{font-family:var(--mono); font-size:.88em; background:var(--card); border:1px solid var(--rule); padding:.05em .32em}
+
+  /* jump chips */
+  .jumps{display:flex; flex-wrap:wrap; gap:6px; margin-top:26px; padding-top:18px; border-top:1px solid var(--rule)}
+  .jumps .lbl{font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--soft); align-self:center; margin-right:4px}
+
+  /* ---------- scoresheet ---------- */
+  section{margin-top:64px}
+  h2{
+    margin:0 0 6px; font-size:clamp(22px,3vw,30px); font-weight:600; letter-spacing:-.015em;
+    padding-bottom:8px; border-bottom:2px solid var(--ink); text-wrap:balance;
+  }
+  .sub{margin:0 0 20px; color:var(--soft); max-width:66ch}
+  .sheet{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:2px 16px;
+    font-family:var(--mono); font-size:13px; font-variant-numeric:tabular-nums;
+  }
+  .sheet .row{display:grid; grid-template-columns:30px 1fr 1fr; gap:4px; align-items:center}
+  .sheet .n{color:var(--soft); font-size:11px}
+  .sheet a{
+    color:var(--ink); text-decoration:none; padding:2px 4px; border:1px solid transparent; cursor:pointer;
+  }
+  .sheet a:hover{border-color:var(--rule); background:var(--card)}
+  .sheet a.on{background:var(--ink); color:var(--paper)}
+  .sheet a:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+  .sheet a.mark-error{color:var(--bad); font-weight:600}
+  .sheet a.mark-key{color:var(--warn); font-weight:600}
+  .sheet a.on.mark-error,.sheet a.on.mark-key{color:var(--paper)}
+
+  /* ---------- prose + cards ---------- */
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:20px}
+  .card{border:1px solid var(--rule); background:var(--card); padding:18px 20px; display:grid; gap:8px; align-content:start}
+  .card h4{margin:0; font-size:17px; font-weight:600}
+  .card .k{font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent)}
+  .card p{margin:0; font-size:15.5px; color:var(--soft)}
+  .card p b{color:var(--ink); font-weight:600}
+  .prose p{max-width:66ch}
+  .ledger{display:grid; gap:0; border-top:1px solid var(--rule)}
+  .ledger .item{display:grid; grid-template-columns:86px 1fr; gap:16px; padding:14px 0; border-bottom:1px solid var(--rule)}
+  .ledger .at{font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--soft)}
+  .ledger p{margin:0; font-size:15.5px}
+  @media (max-width:560px){ .ledger .item{grid-template-columns:1fr; gap:4px} }
+  footer{margin-top:64px; padding-top:18px; border-top:1px solid var(--rule); color:var(--soft); font-family:var(--mono); font-size:11px; letter-spacing:.06em; display:flex; flex-wrap:wrap; gap:16px; justify-content:space-between}
+  @media (prefers-reduced-motion:reduce){ *{transition:none !important} }
+
+  /* ---------- mobile ---------- */
+  @media (max-width:900px){
+    .anno{min-height:0}
+    .study{gap:22px}
+  }
+  @media (max-width:640px){
+    body{font-size:16px}
+    .wrap{padding:18px 16px 56px}
+    .eyebrow{font-size:10px; gap:8px 12px}
+    .eyebrow #theme{margin-left:0}
+    .mast{gap:11px}
+    .anno-head{gap:8px}
+    .san{font-size:26px}
+    .controls button{flex:1 1 auto; padding:9px 8px}
+    .ply{flex-basis:100%; margin-left:0; text-align:right}
+    .sheet{grid-template-columns:repeat(auto-fill,minmax(132px,1fr)); gap:2px 12px; font-size:12.5px}
+    .jumps{gap:5px}
+    .jumps button{font-size:10.5px; padding:6px 8px}
+    .card{padding:15px 16px}
+    .ledger .item{padding:12px 0}
+    footer{flex-direction:column; gap:6px}
+    section{margin-top:48px}
+  }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="eyebrow">
+      <span>Casual game &middot; 29 July 2026</span>
+      <span>B12 &mdash; Caro-Kann, Advance Variation</span>
+      <span class="result-tag">1&ndash;0 &middot; 45 moves</span>
+      <button id="theme" style="margin-left:auto">Theme</button>
+    </div>
+    <h1>Todd <span class="vs">vs</span> Claude Opus 5</h1>
+    <p class="standfirst">
+      A full game played by typing moves into a chat window. Todd played White; Claude Opus 5 played Black.
+      There was no chess program suggesting moves to either side &mdash; Claude wrote itself a
+      <b>rulebook</b>, not an engine, and worked the moves out in prose.
+    </p>
+    <p class="standfirst">
+      Claude survived one bad moment on move 7, took the lead on material at move 34, then
+      <b>lost the endgame to a pair of queenside pawns</b> and resigned on move 45. Step through every move
+      below: the commentary beside the board is what the two of them actually said to each other at the time,
+      quoted as typed.
+    </p>
+  </header>
+
+  <div class="study">
+    <div class="left">
+      <div class="board" id="board" aria-label="Chess board"></div>
+      <div class="ribbon">
+        <canvas id="ribbon" width="920" height="92" aria-label="Material balance across the game"></canvas>
+        <div class="lab"><span>Who is ahead on material</span><span id="matnow">level</span></div>
+      </div>
+      <div class="controls">
+        <button id="first" aria-label="First move">&#124;&laquo;</button>
+        <button id="prev" aria-label="Previous move">&laquo; Prev</button>
+        <button id="next" aria-label="Next move">Next &raquo;</button>
+        <button id="last" aria-label="Final position">&raquo;&#124;</button>
+        <span class="ply" id="plylabel"></span>
+      </div>
+      <p style="margin:0; font-family:var(--mono); font-size:11px; color:var(--soft); letter-spacing:.04em">
+        Use &larr; and &rarr; to step through the game. Each step is one player's move, so 89 steps = 45 moves.
+      </p>
+    </div>
+
+    <div class="anno" id="anno"></div>
+  </div>
+
+  <div class="jumps" id="jumps"><span class="lbl">Jump to</span></div>
+
+  <section>
+    <h2>The scoresheet</h2>
+    <p class="sub">The full game in notation. Click any move to jump the board to it. Red marks Claude's mistakes, amber marks the moments the game changed direction.</p>
+    <div class="sheet" id="sheet"></div>
+  </section>
+
+  <section>
+    <h2>The one thing to understand about how Claude played</h2>
+    <p class="sub">
+      Chess programs like Stockfish win by <b>searching</b>: they look at millions of positions and score them.
+      Claude did nothing of the kind. Before the first move it wrote itself a rulebook &mdash; and deliberately
+      stopped there.
+    </p>
+    <div class="cols">
+      <div class="card">
+        <span class="k">The rulebook</span>
+        <h4>It knows the rules. It has no opinions.</h4>
+        <p>
+          The program Claude wrote can do exactly one thing: given a position, tell you every legal move.
+          It handles castling, en passant, promotion, pins, check, mate, stalemate, the fifty-move rule and
+          threefold repetition.
+        </p>
+        <p>
+          <b>What it cannot do:</b> judge a position, compare two moves, or look ahead. It has no scoring and
+          no search. It never once suggested a move. Every move in this game was chosen by Claude reasoning
+          in words.
+        </p>
+      </div>
+      <div class="card">
+        <span class="k">Why that matters</span>
+        <h4>Building the strong version would have been easy</h4>
+        <p>
+          Adding a real searching engine is a well-known, few-hundred-line job, and it would have played far
+          better than Claude did. Claude said why it refused:
+        </p>
+        <p style="font-style:italic">
+          "It would be trivial to add and it would make your Elo estimate meaningless."
+        </p>
+        <p>The whole point of the game was to measure Claude, so the crutch was left out on purpose.</p>
+      </div>
+      <div class="card">
+        <span class="k">Checked before playing</span>
+        <h4>The rulebook was tested first</h4>
+        <p>
+          Claude wrote 23 test positions to prove the rules worked before trusting them in a real game &mdash;
+          Scholar's mate, Fool's mate, castling through check, en passant, promotion, and a tricky case where
+          promoting a pawn is illegal because it would expose your own king.
+        </p>
+        <p>Three tests failed on the first run. All three turned out to be <b>Claude's own bad test positions</b>, not faults in the rules.</p>
+      </div>
+      <div class="card">
+        <span class="k">A calculator, not a coach</span>
+        <h4>What the tooling actually did each turn</h4>
+        <p>
+          Claude decided on candidate moves by thinking, then asked the rulebook narrow factual questions
+          about lines it had <i>already</i> worked out: is this square attacked? If I capture here, what can
+          recapture? Is this sequence legal? Is anything of mine hanging?
+        </p>
+        <p>
+          Close to what a club player does by eye before committing &mdash; but faster and more reliable, which
+          is why the ledger below matters.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Where the tooling actually helped &mdash; all four times</h2>
+    <p class="sub">
+      Todd asked twice, directly, how much help Claude was getting. Rather than give a reassuring answer,
+      Claude kept a running tally. These are every occasion in the game where checking a fact against the
+      rulebook either changed Claude's move or caught something it had already said out loud and got wrong.
+      Two of the four are Claude being <b>wrong in public</b>.
+    </p>
+    <div class="ledger">
+      <div class="item">
+        <span class="at">Move 9<br>Claude wrong</span>
+        <p>
+          Claude told Todd that <code>Qxa7</code> would win a second pawn. It wouldn't &mdash;
+          <code>Bxa7</code> answers it, because the bishop on c5 guards a7 along the c5&ndash;b6&ndash;a7
+          diagonal. Claude noticed while listing the recaptures, and corrected itself in the same message
+          rather than letting it stand.
+        </p>
+      </div>
+      <div class="item">
+        <span class="at">Move 28<br>Claude wrong</span>
+        <p>
+          Claude claimed no pawn could ever chase its knight off f4. Plainly false: <code>g3</code> attacks
+          f4. Todd spotted it first &mdash; <i>"i do have a g pawn that can kick your knight"</i>. The reason
+          for the error is instructive: Claude had checked whether f4 was attacked <b>right now</b> and never
+          thought about a pawn <i>advancing</i> to attack it later.
+        </p>
+      </div>
+      <div class="item">
+        <span class="at">Move 38<br>Lucky find</span>
+        <p>
+          A broken test script threw an error, and the error text happened to reveal that White's
+          <code>Kd2</code> was not legal: Claude's rook on d4 was sealing the whole d-file and shutting
+          White's king out of the queenside. A genuinely good feature of the move &mdash; which Claude had not
+          planned and only understood afterwards.
+        </p>
+      </div>
+      <div class="item">
+        <span class="at">Move 39<br>Blunder averted</span>
+        <p>
+          The clearest case. Claude had settled on <code>Ra4</code> to attack White's new a5 pawn, and the
+          list of White's knight moves showed <code>Nc3</code> covers a4 &mdash; <code>Nxa4</code> simply
+          wins a rook. Claude scrapped the move, said so, and played <code>Rd3</code> instead. Without that
+          check it would have thrown away the game on the spot.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="prose">
+    <h2>How Black actually lost</h2>
+    <p class="sub">Not a blunder. A plan &mdash; and Todd's, not Claude's.</p>
+    <p>
+      This is the part worth understanding, because it isn't the usual computer-loses story. Claude got
+      through its one bad tactical moment on move 7, and from move 34 it was <b>ahead on material</b>: two
+      rooks against a rook and knight. It never made another losing tactical error. It still lost, to
+      something slower.
+    </p>
+    <p>
+      With <code>b4</code> and <code>a4</code>, Todd built an extra pawn on the queenside. Claude saw it and
+      slowed it down with <code>a6</code> &mdash; but treated it as a nuisance rather than as the main story of
+      the position. Around moves 38 to 42 it spent its time on a rook that cut White's king off the d-file.
+      That was elegant, and it was beside the point: the king was never the thing that was going to win.
+    </p>
+    <p>
+      Then <code>b6</code> on move 42, offering a knight as bait. Taking the knight loses immediately, because
+      after <code>b7</code> the pawn is one square from queening and the rook has nowhere to stop it. The
+      eighth rank is unavailable, since a pawn on b7 covers a8 and c8. The b-file is unavailable, because
+      <b>Claude's own pawn on b3 was standing in the way</b>.
+    </p>
+    <p>
+      That last detail is the whole game. It confined Claude's rook to two squares, b5 and b6, for the rest of
+      the game &mdash; and a rook stuck on two squares cannot also cover the a-file. Once White got pawns to
+      a7 and b7 together, the rook could only take one of them: <code>a8=Q Rxa8 bxa8=Q</code>, and White has a
+      new queen.
+    </p>
+    <p>
+      Claude worked all of this out, said it plainly instead of playing on and hoping, and resigned. Its own
+      summary: strong middlegame, weak endgame <i>planning</i>. Todd's <code>b6</code>, and the pawn geometry
+      behind it, are better than a 1300 rating suggests.
+    </p>
+  </section>
+
+  <footer>
+    <span>Board, engine and annotations built during the game itself</span>
+    <span>Claude Opus 5 &middot; Claude Code</span>
+  </footer>
+</div>
+
+<script>
+const PLIES = [{"san":null,"fen":"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1","from":null,"to":null,"n":0},{"san":"e4","fen":"rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1","from":"e2","to":"e4","n":1},{"san":"c6","fen":"rnbqkbnr/pp1ppppp/2p5/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2","from":"c7","to":"c6","n":2},{"san":"d4","fen":"rnbqkbnr/pp1ppppp/2p5/8/3PP3/8/PPP2PPP/RNBQKBNR b KQkq d3 0 2","from":"d2","to":"d4","n":3},{"san":"d5","fen":"rnbqkbnr/pp2pppp/2p5/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq d6 0 3","from":"d7","to":"d5","n":4},{"san":"e5","fen":"rnbqkbnr/pp2pppp/2p5/3pP3/3P4/8/PPP2PPP/RNBQKBNR b KQkq - 0 3","from":"e4","to":"e5","n":5},{"san":"Bf5","fen":"rn1qkbnr/pp2pppp/2p5/3pPb2/3P4/8/PPP2PPP/RNBQKBNR w KQkq - 1 4","from":"c8","to":"f5","n":6},{"san":"Bd3","fen":"rn1qkbnr/pp2pppp/2p5/3pPb2/3P4/3B4/PPP2PPP/RNBQK1NR b KQkq - 2 4","from":"f1","to":"d3","n":7},{"san":"Bxd3","fen":"rn1qkbnr/pp2pppp/2p5/3pP3/3P4/3b4/PPP2PPP/RNBQK1NR w KQkq - 0 5","from":"f5","to":"d3","n":8},{"san":"Qxd3","fen":"rn1qkbnr/pp2pppp/2p5/3pP3/3P4/3Q4/PPP2PPP/RNB1K1NR b KQkq - 0 5","from":"d1","to":"d3","n":9},{"san":"e6","fen":"rn1qkbnr/pp3ppp/2p1p3/3pP3/3P4/3Q4/PPP2PPP/RNB1K1NR w KQkq - 0 6","from":"e7","to":"e6","n":10},{"san":"Nf3","fen":"rn1qkbnr/pp3ppp/2p1p3/3pP3/3P4/3Q1N2/PPP2PPP/RNB1K2R b KQkq - 1 6","from":"g1","to":"f3","n":11},{"san":"c5","fen":"rn1qkbnr/pp3ppp/4p3/2ppP3/3P4/3Q1N2/PPP2PPP/RNB1K2R w KQkq - 0 7","from":"c6","to":"c5","n":12},{"san":"dxc5","fen":"rn1qkbnr/pp3ppp/4p3/2PpP3/8/3Q1N2/PPP2PPP/RNB1K2R b KQkq - 0 7","from":"d4","to":"c5","n":13},{"san":"Bxc5","fen":"rn1qk1nr/pp3ppp/4p3/2bpP3/8/3Q1N2/PPP2PPP/RNB1K2R w KQkq - 0 8","from":"f8","to":"c5","n":14},{"san":"Qb5+","fen":"rn1qk1nr/pp3ppp/4p3/1QbpP3/8/5N2/PPP2PPP/RNB1K2R b KQkq - 1 8","from":"d3","to":"b5","n":15},{"san":"Nd7","fen":"r2qk1nr/pp1n1ppp/4p3/1QbpP3/8/5N2/PPP2PPP/RNB1K2R w KQkq - 2 9","from":"b8","to":"d7","n":16},{"san":"Qxb7","fen":"r2qk1nr/pQ1n1ppp/4p3/2bpP3/8/5N2/PPP2PPP/RNB1K2R b KQkq - 0 9","from":"b5","to":"b7","n":17},{"san":"Rb8","fen":"1r1qk1nr/pQ1n1ppp/4p3/2bpP3/8/5N2/PPP2PPP/RNB1K2R w KQk - 1 10","from":"a8","to":"b8","n":18},{"san":"Qc6","fen":"1r1qk1nr/p2n1ppp/2Q1p3/2bpP3/8/5N2/PPP2PPP/RNB1K2R b KQk - 2 10","from":"b7","to":"c6","n":19},{"san":"Ne7","fen":"1r1qk2r/p2nnppp/2Q1p3/2bpP3/8/5N2/PPP2PPP/RNB1K2R w KQk - 3 11","from":"g8","to":"e7","n":20},{"san":"Qa4","fen":"1r1qk2r/p2nnppp/4p3/2bpP3/Q7/5N2/PPP2PPP/RNB1K2R b KQk - 4 11","from":"c6","to":"a4","n":21},{"san":"O-O","fen":"1r1q1rk1/p2nnppp/4p3/2bpP3/Q7/5N2/PPP2PPP/RNB1K2R w KQ - 5 12","from":"e8","to":"g8","n":22},{"san":"O-O","fen":"1r1q1rk1/p2nnppp/4p3/2bpP3/Q7/5N2/PPP2PPP/RNB2RK1 b - - 6 12","from":"e1","to":"g1","n":23},{"san":"f6","fen":"1r1q1rk1/p2nn1pp/4pp2/2bpP3/Q7/5N2/PPP2PPP/RNB2RK1 w - - 0 13","from":"f7","to":"f6","n":24},{"san":"exf6","fen":"1r1q1rk1/p2nn1pp/4pP2/2bp4/Q7/5N2/PPP2PPP/RNB2RK1 b - - 0 13","from":"e5","to":"f6","n":25},{"san":"Nxf6","fen":"1r1q1rk1/p3n1pp/4pn2/2bp4/Q7/5N2/PPP2PPP/RNB2RK1 w - - 0 14","from":"d7","to":"f6","n":26},{"san":"Nc3","fen":"1r1q1rk1/p3n1pp/4pn2/2bp4/Q7/2N2N2/PPP2PPP/R1B2RK1 b - - 1 14","from":"b1","to":"c3","n":27},{"san":"Rb4","fen":"3q1rk1/p3n1pp/4pn2/2bp4/Qr6/2N2N2/PPP2PPP/R1B2RK1 w - - 2 15","from":"b8","to":"b4","n":28},{"san":"Qa6","fen":"3q1rk1/p3n1pp/Q3pn2/2bp4/1r6/2N2N2/PPP2PPP/R1B2RK1 b - - 3 15","from":"a4","to":"a6","n":29},{"san":"Qd7","fen":"5rk1/p2qn1pp/Q3pn2/2bp4/1r6/2N2N2/PPP2PPP/R1B2RK1 w - - 4 16","from":"d8","to":"d7","n":30},{"san":"Ne5","fen":"5rk1/p2qn1pp/Q3pn2/2bpN3/1r6/2N5/PPP2PPP/R1B2RK1 b - - 5 16","from":"f3","to":"e5","n":31},{"san":"Qd6","fen":"5rk1/p3n1pp/Q2qpn2/2bpN3/1r6/2N5/PPP2PPP/R1B2RK1 w - - 6 17","from":"d7","to":"d6","n":32},{"san":"Qxd6","fen":"5rk1/p3n1pp/3Qpn2/2bpN3/1r6/2N5/PPP2PPP/R1B2RK1 b - - 0 17","from":"a6","to":"d6","n":33},{"san":"Bxd6","fen":"5rk1/p3n1pp/3bpn2/3pN3/1r6/2N5/PPP2PPP/R1B2RK1 w - - 0 18","from":"c5","to":"d6","n":34},{"san":"Nd3","fen":"5rk1/p3n1pp/3bpn2/3p4/1r6/2NN4/PPP2PPP/R1B2RK1 b - - 1 18","from":"e5","to":"d3","n":35},{"san":"Rb6","fen":"5rk1/p3n1pp/1r1bpn2/3p4/8/2NN4/PPP2PPP/R1B2RK1 w - - 2 19","from":"b4","to":"b6","n":36},{"san":"Be3","fen":"5rk1/p3n1pp/1r1bpn2/3p4/8/2NNB3/PPP2PPP/R4RK1 b - - 3 19","from":"c1","to":"e3","n":37},{"san":"Rb7","fen":"5rk1/pr2n1pp/3bpn2/3p4/8/2NNB3/PPP2PPP/R4RK1 w - - 4 20","from":"b6","to":"b7","n":38},{"san":"a3","fen":"5rk1/pr2n1pp/3bpn2/3p4/8/P1NNB3/1PP2PPP/R4RK1 b - - 0 20","from":"a2","to":"a3","n":39},{"san":"Nc6","fen":"5rk1/pr4pp/2nbpn2/3p4/8/P1NNB3/1PP2PPP/R4RK1 w - - 1 21","from":"e7","to":"c6","n":40},{"san":"Nc5","fen":"5rk1/pr4pp/2nbpn2/2Np4/8/P1N1B3/1PP2PPP/R4RK1 b - - 2 21","from":"d3","to":"c5","n":41},{"san":"Bxc5","fen":"5rk1/pr4pp/2n1pn2/2bp4/8/P1N1B3/1PP2PPP/R4RK1 w - - 0 22","from":"d6","to":"c5","n":42},{"san":"Bxc5","fen":"5rk1/pr4pp/2n1pn2/2Bp4/8/P1N5/1PP2PPP/R4RK1 b - - 0 22","from":"e3","to":"c5","n":43},{"san":"Rd8","fen":"3r2k1/pr4pp/2n1pn2/2Bp4/8/P1N5/1PP2PPP/R4RK1 w - - 1 23","from":"f8","to":"d8","n":44},{"san":"Rfe1","fen":"3r2k1/pr4pp/2n1pn2/2Bp4/8/P1N5/1PP2PPP/R3R1K1 b - - 2 23","from":"f1","to":"e1","n":45},{"san":"e5","fen":"3r2k1/pr4pp/2n2n2/2Bpp3/8/P1N5/1PP2PPP/R3R1K1 w - - 0 24","from":"e6","to":"e5","n":46},{"san":"b4","fen":"3r2k1/pr4pp/2n2n2/2Bpp3/1P6/P1N5/2P2PPP/R3R1K1 b - b3 0 24","from":"b2","to":"b4","n":47},{"san":"a6","fen":"3r2k1/1r4pp/p1n2n2/2Bpp3/1P6/P1N5/2P2PPP/R3R1K1 w - - 0 25","from":"a7","to":"a6","n":48},{"san":"Rad1","fen":"3r2k1/1r4pp/p1n2n2/2Bpp3/1P6/P1N5/2P2PPP/3RR1K1 b - - 1 25","from":"a1","to":"d1","n":49},{"san":"d4","fen":"3r2k1/1r4pp/p1n2n2/2B1p3/1P1p4/P1N5/2P2PPP/3RR1K1 w - - 0 26","from":"d5","to":"d4","n":50},{"san":"Ne4","fen":"3r2k1/1r4pp/p1n2n2/2B1p3/1P1pN3/P7/2P2PPP/3RR1K1 b - - 1 26","from":"c3","to":"e4","n":51},{"san":"Rbd7","fen":"3r2k1/3r2pp/p1n2n2/2B1p3/1P1pN3/P7/2P2PPP/3RR1K1 w - - 2 27","from":"b7","to":"d7","n":52},{"san":"Rd3","fen":"3r2k1/3r2pp/p1n2n2/2B1p3/1P1pN3/P2R4/2P2PPP/4R1K1 b - - 3 27","from":"d1","to":"d3","n":53},{"san":"Nh5","fen":"3r2k1/3r2pp/p1n5/2B1p2n/1P1pN3/P2R4/2P2PPP/4R1K1 w - - 4 28","from":"f6","to":"h5","n":54},{"san":"a4","fen":"3r2k1/3r2pp/p1n5/2B1p2n/PP1pN3/3R4/2P2PPP/4R1K1 b - - 0 28","from":"a3","to":"a4","n":55},{"san":"Nf4","fen":"3r2k1/3r2pp/p1n5/2B1p3/PP1pNn2/3R4/2P2PPP/4R1K1 w - - 1 29","from":"h5","to":"f4","n":56},{"san":"Rf3","fen":"3r2k1/3r2pp/p1n5/2B1p3/PP1pNn2/5R2/2P2PPP/4R1K1 b - - 2 29","from":"d3","to":"f3","n":57},{"san":"a5","fen":"3r2k1/3r2pp/2n5/p1B1p3/PP1pNn2/5R2/2P2PPP/4R1K1 w - - 0 30","from":"a6","to":"a5","n":58},{"san":"b5","fen":"3r2k1/3r2pp/2n5/pPB1p3/P2pNn2/5R2/2P2PPP/4R1K1 b - - 0 30","from":"b4","to":"b5","n":59},{"san":"Nb4","fen":"3r2k1/3r2pp/8/pPB1p3/Pn1pNn2/5R2/2P2PPP/4R1K1 w - - 1 31","from":"c6","to":"b4","n":60},{"san":"Bxb4","fen":"3r2k1/3r2pp/8/pP2p3/PB1pNn2/5R2/2P2PPP/4R1K1 b - - 0 31","from":"c5","to":"b4","n":61},{"san":"axb4","fen":"3r2k1/3r2pp/8/1P2p3/Pp1pNn2/5R2/2P2PPP/4R1K1 w - - 0 32","from":"a5","to":"b4","n":62},{"san":"Rb3","fen":"3r2k1/3r2pp/8/1P2p3/Pp1pNn2/1R6/2P2PPP/4R1K1 b - - 1 32","from":"f3","to":"b3","n":63},{"san":"d3","fen":"3r2k1/3r2pp/8/1P2p3/Pp2Nn2/1R1p4/2P2PPP/4R1K1 w - - 0 33","from":"d4","to":"d3","n":64},{"san":"cxd3","fen":"3r2k1/3r2pp/8/1P2p3/Pp2Nn2/1R1P4/5PPP/4R1K1 b - - 0 33","from":"c2","to":"d3","n":65},{"san":"Nxd3","fen":"3r2k1/3r2pp/8/1P2p3/Pp2N3/1R1n4/5PPP/4R1K1 w - - 0 34","from":"f4","to":"d3","n":66},{"san":"Rxd3","fen":"3r2k1/3r2pp/8/1P2p3/Pp2N3/3R4/5PPP/4R1K1 b - - 0 34","from":"b3","to":"d3","n":67},{"san":"Rxd3","fen":"3r2k1/6pp/8/1P2p3/Pp2N3/3r4/5PPP/4R1K1 w - - 0 35","from":"d7","to":"d3","n":68},{"san":"f3","fen":"3r2k1/6pp/8/1P2p3/Pp2N3/3r1P2/6PP/4R1K1 b - - 0 35","from":"f2","to":"f3","n":69},{"san":"Rd1","fen":"3r2k1/6pp/8/1P2p3/Pp2N3/5P2/6PP/3rR1K1 w - - 1 36","from":"d3","to":"d1","n":70},{"san":"Kf2","fen":"3r2k1/6pp/8/1P2p3/Pp2N3/5P2/5KPP/3rR3 b - - 2 36","from":"g1","to":"f2","n":71},{"san":"Rxe1","fen":"3r2k1/6pp/8/1P2p3/Pp2N3/5P2/5KPP/4r3 w - - 0 37","from":"d1","to":"e1","n":72},{"san":"Kxe1","fen":"3r2k1/6pp/8/1P2p3/Pp2N3/5P2/6PP/4K3 b - - 0 37","from":"f2","to":"e1","n":73},{"san":"b3","fen":"3r2k1/6pp/8/1P2p3/P3N3/1p3P2/6PP/4K3 w - - 0 38","from":"b4","to":"b3","n":74},{"san":"Nc3","fen":"3r2k1/6pp/8/1P2p3/P7/1pN2P2/6PP/4K3 b - - 1 38","from":"e4","to":"c3","n":75},{"san":"Rd4","fen":"6k1/6pp/8/1P2p3/P2r4/1pN2P2/6PP/4K3 w - - 2 39","from":"d8","to":"d4","n":76},{"san":"a5","fen":"6k1/6pp/8/PP2p3/3r4/1pN2P2/6PP/4K3 b - - 0 39","from":"a4","to":"a5","n":77},{"san":"Rd3","fen":"6k1/6pp/8/PP2p3/8/1pNr1P2/6PP/4K3 w - - 1 40","from":"d4","to":"d3","n":78},{"san":"Nb1","fen":"6k1/6pp/8/PP2p3/8/1p1r1P2/6PP/1N2K3 b - - 2 40","from":"c3","to":"b1","n":79},{"san":"Rd5","fen":"6k1/6pp/8/PP1rp3/8/1p3P2/6PP/1N2K3 w - - 3 41","from":"d3","to":"d5","n":80},{"san":"Nc3","fen":"6k1/6pp/8/PP1rp3/8/1pN2P2/6PP/4K3 b - - 4 41","from":"b1","to":"c3","n":81},{"san":"Rd3","fen":"6k1/6pp/8/PP2p3/8/1pNr1P2/6PP/4K3 w - - 5 42","from":"d5","to":"d3","n":82},{"san":"b6","fen":"6k1/6pp/1P6/P3p3/8/1pNr1P2/6PP/4K3 b - - 0 42","from":"b5","to":"b6","n":83},{"san":"Rd4","fen":"6k1/6pp/1P6/P3p3/3r4/1pN2P2/6PP/4K3 w - - 1 43","from":"d3","to":"d4","n":84},{"san":"b7","fen":"6k1/1P4pp/8/P3p3/3r4/1pN2P2/6PP/4K3 b - - 0 43","from":"b6","to":"b7","n":85},{"san":"Rb4","fen":"6k1/1P4pp/8/P3p3/1r6/1pN2P2/6PP/4K3 w - - 1 44","from":"d4","to":"b4","n":86},{"san":"a6","fen":"6k1/1P4pp/P7/4p3/1r6/1pN2P2/6PP/4K3 b - - 0 44","from":"a5","to":"a6","n":87},{"san":"Rb6","fen":"6k1/1P4pp/Pr6/4p3/8/1pN2P2/6PP/4K3 w - - 1 45","from":"b4","to":"b6","n":88},{"san":"a7","fen":"6k1/PP4pp/1r6/4p3/8/1pN2P2/6PP/4K3 b - - 0 45","from":"a6","to":"a7","n":89}];
+
+const ANNO = {
+  1:{h:"White takes the centre",b:[
+     {q:"Todd",s:"i just wanna play chess against you and try to evaluate what your Elo might be"},
+     {q:"Claude",s:"No handicap - I'll play my best so your Elo read is meaningful."},
+     {q:"Todd",s:"i'll start with e4"}]},
+  2:{tag:"key",h:"Claude picks a solid opening on purpose",b:[
+     "The Caro-Kann rather than 1...e5, and Claude gave the reason before playing it:",
+     {q:"Claude",s:"It's rock-solid and it sidesteps the sharp early tactics of the Italian, which is exactly the kind of position where my calculation is weakest."},
+     "Worth noting how candid that is - Claude picked an opening to hide its own weakness."]},
+  3:{b:[{q:"Todd",s:"d4"},"The main line. The tension between the pawns on e4 and d5 is the whole point of the opening."]},
+  4:{b:["Black hits the centre straight back. Claude then helpfully listed White's four main options, which went down badly."]},
+  5:{tag:"key",h:"\"We're playing chess!\"",b:[
+     {q:"Todd",s:"you shouldn't tell me what moves to play haha"},
+     {q:"Todd",s:"we're playing chess!"},
+     {q:"Claude",s:"Fair - no more coaching. Just chess."},
+     "Todd chose the Advance Variation with e5. Claude never volunteered options again."]},
+  6:{b:["The light-squared bishop gets out before the pawn on e6 would lock it in. Claude was upfront that this was memory, not calculation."]},
+  7:{tag:"tool",h:"\"Are you actually looking at the board?\"",b:[
+     {q:"Todd",s:"are you able to see the board when you make your moves? or are you just playing a line that you memorized?"},
+     {q:"Claude",s:"Honest answer: both, and I can show you which is which. But you're right to be suspicious of the moves so far. 1...c6 2...d5 3...Bf5 is textbook Advance Caro-Kann - I didn't calculate those, I recognized them."},
+     "To prove it was genuinely reading the position, Claude printed the list it was choosing from: all 30 legal moves, with Qa5+ correctly marked as a check."]},
+  8:{b:[
+     {q:"Claude",s:"My bishop is attacked and I'm the cramped side, so I'll trade it off rather than spend moves shuffling it."},
+     {q:"Todd",s:"queen takes bishop on d3"}]},
+  9:{b:["Queens recapture, material is dead level, and both light-squared bishops have left the board."]},
+  10:{b:["Solid and slightly passive. Black is short of space but has no weaknesses."]},
+  11:{b:[{q:"Todd",s:"knight f3"}]},
+  12:{b:[
+     "Hitting the base of White's pawn chain. Claude had already looked at the Qb5+ check here and decided it was answerable - a judgement that stayed correct for exactly two more moves.",
+     {q:"Todd",s:"pawn takes on c5"}]},
+  13:{b:["White grabs the pawn. How Black recaptures is the most important decision of the opening, and Claude gets it wrong."]},
+  14:{tag:"error",h:"The mistake",b:[
+     "Recapturing with the bishop puts it on c5 - the same rank the White queen is about to check from.",
+     {q:"Claude",s:"I'd looked at Qb5+ two moves earlier and concluded \"Qd7 answers it fine\" - which was true then, before my bishop landed on c5. I didn't re-check the resource after the position changed, and that's exactly the failure mode I told you to watch for."},
+     "A very human error: the right answer to a threat, remembered one move past its expiry date."]},
+  15:{tag:"key",h:"Todd spots the double attack",b:[
+     {q:"Todd",s:"i think this might have been a blunder on your end"},
+     {q:"Todd",s:"queen b5 check"},
+     {q:"Claude",s:"You're right, and it's a clean shot: that's a double attack - check on the b5-e8 diagonal and my bishop on c5 is hanging on the same rank."},
+     "Two threats, one move. Black must answer the check, which normally means losing the bishop."]},
+  16:{tag:"good",h:"The one move that saves the piece",b:[
+     "Five replies are legal. Four of them lose a piece. Nd7 blocks the check and also guards c5, so grabbing the bishop with Qxc5 would run into Nxc5 - queen for a bishop.",
+     {q:"Claude",s:"Verified both ways above, not eyeballed."},
+     "Claude still loses the b7 pawn. But a pawn is survivable; a piece would not have been."]},
+  17:{b:[
+     {q:"Todd",s:"yeah that was a good response"},
+     {q:"Todd",s:"queen takes the b7 pawn"}]},
+  18:{tag:"tool",h:"Claude corrects itself, out loud",b:[
+     "A move earlier Claude had told Todd that Qxa7 would win a second pawn. Checking the position properly showed that was wrong.",
+     {q:"Claude",s:"That changes things - and corrects what I told you a move ago. I said you'd win a second pawn with Qxa7; in fact Bxa7 answers it, because my bishop on c5 covers a7 down the c5-b6-a7 diagonal."},
+     "So the rook can hit the queen for free."]},
+  19:{tag:"tool",h:"An impossible move, caught",b:[
+     {q:"Todd",s:"queen retreats to d6"},
+     {q:"Claude",s:"Qd6 isn't available - b7 to d6 is a knight's move, not a queen's."},
+     "Claude listed the thirteen squares the queen could actually reach and asked which was meant.",
+     {q:"Todd",s:"oh sorry i meant c6, thanks for catching that"},
+     "This happened three times in the game. Because Claude was playing from a real rulebook rather than from memory of the move list, every illegal or ambiguous move got caught rather than quietly accepted."]},
+  20:{b:[
+     "From c6 the queen touches c5, d5, d7 and e6 all at once - and every one of them is defended. Claude checked all four before concluding there was nothing to fear.",
+     {q:"Claude",s:"Ngf6 is impossible here because exf6 just eats the knight."}]},
+  21:{b:[{q:"Todd",s:"oh i like that move for you. that's strong. i'll move all the way back to Qa4"}]},
+  22:{b:["Black's king is safe. Claude is a pawn down, but every black piece is doing something while White's queenside has not moved and the queen sits on the edge of the board."]},
+  23:{b:[{q:"Todd",s:"i'm really underdeveloped for sure. I'm going to take this chance to castle as well."}]},
+  24:{tag:"key",h:"Cashing in the lead in development",b:[
+     {q:"Claude",s:"Your king's safe now, but your queenside pieces are still at home - so I'll open lines while that's true."},
+     "f6 attacks the head of White's pawn chain. It also rules out Ng5 for good, since fxg5 would just win the knight."]},
+  25:{h:"Todd says his plan out loud",b:[
+     {q:"Todd",s:"i'll take with the pawn on f6. i'm hoping that you'll retake with the rook and i'll be able to develop my bishop with tempo"},
+     "Announcing the idea is generous, and it costs him - Claude simply avoids it."]},
+  26:{tag:"good",h:"Declined",b:[
+     {q:"Claude",s:"Appreciated, but that's exactly why I won't - Rxf6 walks into Bg5 and you develop with tempo."},
+     "Taking with the knight keeps the pawn structure clean, and now Bg5 achieves nothing because the g7 pawn guards f6."]},
+  27:{b:[{q:"Todd",s:"oh you're playing well. i'll develop my knight to c3"}]},
+  28:{b:[
+     "a6 would simply lose a pawn to Qxa6, so Claude harasses the queen instead. The rook on b4 is safe because the bishop on c5 protects it.",
+     {q:"Claude",s:"Your queen is attacked and short of squares. On b5 or b3 I take it with the rook, on c6 the e7-knight takes it, and a7 runs into Bxa7."}]},
+  29:{tag:"key",h:"A genuinely dangerous move",b:[
+     {q:"Todd",s:"hmm you're being aggressive. Q to a6"},
+     {q:"Claude",s:"That was a genuinely dangerous move - Qxe6+ was on, winning a second pawn with check, since nothing of mine covered e6."},
+     "Claude's first attempt to test the position was botched - it asked the wrong side's question - and it said so before running the check properly."]},
+  30:{tag:"good",h:"One square, three jobs",b:[
+     "Qd7 defends e6, and it quietly poisons Nb5: the knight would be attacked twice and defended once."]},
+  31:{tag:"tool",h:"\"You don't have an engine helping you, right?\"",b:[
+     {q:"Todd",s:"you don't have an engine or anything helping you right?"},
+     {q:"Claude",s:"Straight answer, because it matters for what you're measuring: no engine is helping me pick moves. It has no evaluation function and no search - it's pure rules. I deliberately didn't build a search, because it would be trivial to add and it would make your Elo estimate meaningless."},
+     {q:"Claude",s:"So it's a calculator checking my arithmetic, not a coach choosing my moves. If you'd rather I drop even that and play purely from the board, say so and I will."}]},
+  32:{tag:"good",h:"Attacking a knight nothing can capture",b:[
+     "The knight on e5 is out of reach of every black piece. Qd6 is the only square that steps off the attack, keeps e6 defended, and hits e5 - which White has left unguarded. The queen is safe there because the bishop on c5 covers d6."]},
+  33:{h:"A premove",b:[
+     {q:"Todd",s:"yeah i think that's the correct response. I'll trade queens. If you retake with the bishop - i'm premoving to retreat my knight to d3, attacking your rook and protecting the b2 square"}]},
+  34:{b:["Forced - nothing else covers d6."]},
+  35:{b:["The premove lands. Black's rook on b4 is attacked and, now that the bishop has left c5, undefended."]},
+  36:{tag:"good",h:"Not the natural retreat",b:[
+     "Rd4 looks right and loses a piece: Nb5 would fork the rook and the bishop, and neither is defended.",
+     {q:"Claude",s:"Rb6 covers b5 so that fork never happens, and it defends the bishop on d6."}]},
+  37:{h:"Todd gains time",b:[
+     {q:"Todd",s:"i play bishop to e3 - skewering the rook and pawn. You'll probably have to move it again and i've developed with tempo. finally all my pieces are out"},
+     {q:"Claude",s:"Nice move - that's a real tempo-gainer, and it's more than just a nudge: Bxb6 axb6 would win a rook for a bishop, so I can't just leave it there."}]},
+  38:{b:[
+     "Rb7 is the only retreat that is both safe and keeps a7 defended.",
+     {q:"Claude",s:"Rb8 came back \"illegal\" only because it's ambiguous - both my rooks can reach b8. Strictness, not a bug."}]},
+  39:{h:"The plan that eventually wins",b:[
+     {q:"Todd",s:"I'm going to play a3 - because i think that pushing my queen pawns would be strong"},
+     "This is the idea that decides the game twenty moves later. Claude noticed it and underrated it."]},
+  40:{tag:"key",h:"Both players see the same idea",b:[
+     "Nc6 supports a coming d4, which would attack White's bishop and knight at the same time. Claude also corrected the record on Todd's stated plan:",
+     {q:"Claude",s:"Fair warning on your b4 plan: it doesn't currently attack either knight (they're on c6 and f6)."},
+     {q:"Todd",s:"oh yeah i wasn't looking closely, the b4 pawn doesn't hit the knight"},
+     {q:"Todd",s:"i saw that Nc6 d4 fork too - really cool that you saw it as well"}]},
+  41:{tag:"key",h:"Todd's best tactic so far",b:[
+     {q:"Todd",s:"i have a better idea - Knight c5"},
+     {q:"Claude",s:"Good move - that's a genuine double attack: the knight hits my rook on b7 and the e6 pawn, and both are undefended."},
+     "Every rook retreat drops e6 with tempo, because Nxe6 would then hit the f8 rook as well. The knight has to be taken."]},
+  42:{b:["Forced. Nothing else deals with both threats at once."]},
+  43:{b:[
+     {q:"Todd",s:"i'll retake with the bishop"},
+     "Claude flagged the consequence before it arrived: the bishop on c5 now looks straight down the diagonal at Black's rook on f8."]},
+  44:{b:["Rook off the diagonal, onto the file where it will support the d4 push."]},
+  45:{h:"Pressure on e6",b:[
+     {q:"Todd",s:"my kingside f rook moves to e1"},
+     "Both rooks could reach e1, so the move had to be spelled out as Rfe1. Rxe6 is now a real threat and nothing defends the pawn."]},
+  46:{tag:"good",h:"Solving a problem by advancing",b:[
+     {q:"Claude",s:"Rather than defend it passively, I'll push past: e5 solves the problem by advancing, builds a central pawn duo, and cramps your knight - Ne4 now drops to dxe4 and Nxd5 drops to Rxd5."}]},
+  47:{h:"A move with a hidden cost",b:[
+     {q:"Todd",s:"b4 - protecting my pawn and bishop"},
+     {q:"Claude",s:"b4 does protect the bishop, but it has a cost: your knight on c3 is now undefended, since b2 was its only guard."},
+     "That loose knight becomes the basis of Black's next several moves."]},
+  48:{tag:"good",h:"Prevention before action",b:[
+     "d4 is tempting and premature. b5 would hit the c6 knight - which is the only defender of both d4 and e5 - and every square that knight has is bad. So Claude takes the resource away first. With a6 played, b5 would simply cost White a pawn."]},
+  49:{b:[{q:"Todd",s:"cool, i bring my a rook to d1. Rad1"}]},
+  50:{tag:"good",h:"Now it works",b:[
+     "The pawn attacks a knight that nothing defends. Bxd4 fails to three separate recaptures, and both b5 and Nb5 lose a pawn to axb5 - which is precisely what a6 was for."]},
+  51:{b:[{q:"Todd",s:"knight e4"}]},
+  52:{tag:"key",h:"Refusing a trade, for a structural reason",b:[
+     {q:"Claude",s:"Deliberately not trading knights. Two reasons: Nxe4 Rxe4 would give your rook a third attack on d4 and win it, and more importantly your bishop is dark-squared while my d4, e5 and g7 pawns all sit on dark squares - it's aimed at all of them, and my knights are what defend them."},
+     "This is the kind of judgement that is hard to fake: it needs the whole pawn structure in view, not just the next capture."]},
+  53:{b:[{q:"Todd",s:"rook d3, blocking your pawn"}]},
+  54:{h:"Rerouting the knight",b:[
+     {q:"Claude",s:"Nothing of mine can touch that rook where it stands, so I'm routing a knight to f4 - from there it hits the rook and g2."},
+     "Claude also explained why it had rejected a5: b5 would freeze the a-pawn behind a3 and hand White a passed pawn."]},
+  55:{b:[{q:"Todd",s:"pawn a4"}]},
+  56:{tag:"error",h:"A confident claim that was false",b:[
+     {q:"Claude",s:"The knight can never be evicted from f4 - no pawn of yours can reach f3 or g3 to hit it."},
+     {q:"Todd",s:"also i do have a g pawn that can kick your knight, i'll probably play that soon"},
+     {q:"Claude",s:"You're right and I was wrong: g3 does hit f4. I checked whether f4 was attacked in the current position and never looked at the pawn advance."},
+     "Todd also corrected his own move here, having first typed rook f4: \"sorry i meant rook f3\"."]},
+  57:{b:["Rf3 attacks the knight but wins nothing: the e5 pawn guards f4, so Rxf4 exf4 would lose a rook for a knight."]},
+  58:{tag:"good",h:"Undermining the queenside",b:[
+     "After a4, the b4 pawn is defended only by the bishop, and Black's knight already attacks it. a5 adds a second attacker. If White ignores it, axb4 Bxb4 Nxb4 wins a pawn and a bishop for one pawn."]},
+  59:{b:[{q:"Todd",s:"b5"}]},
+  60:{tag:"good",h:"Into the gap",b:[
+     {q:"Claude",s:"The knight jumps to the one square that isn't a retreat: it's protected by my a5 pawn, and it's threatening Nxc2 - that pawn is undefended, and from c2 the knight also forks your e1 rook."}]},
+  61:{h:"A disputed square colour",b:[
+     {q:"Todd",s:"those are actually light squared spaces on my board - but you're right that the bishop is on that diagonal"},
+     {q:"Claude",s:"You've actually found a bug - not in my reasoning, but in my renderer. Your board was lying to you."},
+     "The board Todd had been watching all game was drawing the light and dark squares the wrong way round - a1 came out light instead of dark. Claude fixed it mid-game and checked the four corners before carrying on. The chess reasoning had been right; the picture had been wrong.",
+     {q:"Todd",s:"i think i'll make the trade. bxb4, then if you play axb4, my next move is .... rook b3"}]},
+  62:{b:["Forced recapture. Claude has traded its knight for White's dark-squared bishop - the exchange it had been angling for since move 26, because that bishop was the piece aimed at all of its pawns."]},
+  63:{b:["As announced. The rook attacks b4, and no black piece can defend it, because White's own b5 pawn blocks the file."]},
+  64:{tag:"good",h:"The pawn runs",b:[
+     "Attacked once, defended twice, and threatening dxc2 - which would leave a black pawn one square from promoting. Grabbing the b4 pawn now would allow exactly that."]},
+  65:{b:[{q:"Todd",s:"okay i think i have to take with my pawn. cxd3"}]},
+  66:{tag:"key",h:"Knight, not rook - the best move of the game",b:[
+     {q:"Claude",s:"I took with the knight, not the rook, and the difference is large. Rxd3 would have lost b4 immediately. The knight on d3 instead does three jobs at once: wins the pawn back, defends b4 - Rxb4 now runs into Nxb4 - and forks e1, and your rook there is undefended because g1 doesn't cover e1."},
+     "White's only good answer was Re3. Rd1 would have lost to Nc5, forking rook and knight."]},
+  67:{tag:"key",h:"White gives up the exchange",b:[
+     {q:"Todd",s:"okay, tables are turning, i take the knight with my rook. your threat was too strong. i have to sacrifice"},
+     {q:"Claude",s:"That was the right practical call - the fork was winning a rook outright, so giving rook for knight was the cheapest way out."}]},
+  68:{tag:"key",h:"Material flips",b:[
+     "For the first time since move 7, Black is ahead: two rooks against a rook and knight, with White holding one extra pawn. A rook for a knight is worth more than that pawn.",
+     "Watch the ribbon under the board - this is where the line crosses over."]},
+  69:{h:"A pawn move with a hidden cost",b:[
+     {q:"Todd",s:"i'm going to protect my knight and my king with f3"},
+     {q:"Claude",s:"f3 does defend the knight, but it left e1 loose in a way that matters."}]},
+  70:{tag:"good",h:"A pin along the first rank",b:[
+     {q:"Claude",s:"Your rook there is undefended and now effectively pinned to the first rank - if it steps off, say to e2, my rook on d1 checks your king through e1-f1."},
+     "Confirmed by simply listing White's options: the rook had exactly two legal moves, Rf1 or Rxd1."]},
+  71:{h:"Todd finds the resource",b:[
+     {q:"Todd",s:"King f2 - if you take the rook, i retake with the king"}]},
+  72:{b:["Rooks come off. Claude went into this with its eyes open: a rook and four pawns against a knight and five, a point ahead, and holding the better piece for a position full of runners."]},
+  73:{b:[{q:"Todd",s:"okay - i take back with the king, then if you play b3 i play knight c3"}]},
+  74:{b:["The passed pawn takes its first step. b1 is covered by the knight, so it can't run yet."]},
+  75:{b:["The blockade goes up. This knight now spends the rest of the game guarding the promotion square."]},
+  76:{tag:"tool",h:"Something the tooling found by accident",b:[
+     "A broken test script threw an error - and the error revealed that Kd2 was not even legal.",
+     {q:"Claude",s:"Kd2 isn't even legal there - my rook on d4 controls the whole d-file, so it cuts your king off from the queenside. That's the key point of the square."},
+     "Claude had not planned that. It played a good move for a reason it only discovered afterwards."]},
+  77:{b:[
+     {q:"Todd",s:"pawn a5 - just to be clear, you aren't writing scripts to calculate moves are you?"},
+     {q:"Claude",s:"Straight answer, and it's more nuanced than \"just the board and legal moves\" - so let me be exact, since it affects your estimate."}]},
+  78:{tag:"tool",h:"The check that saved a rook",b:[
+     {q:"Claude",s:"This move: I was about to play Ra4 to attack your new a5 pawn. The knight-move list shows Nc3 covers a4 - Nxa4 would have won my rook outright."},
+     "Rd3 instead, hitting the loose knight and leaving White's king only three squares. This is the clearest single case of the tooling changing a move - and Claude reported it in the same message rather than quietly playing something else."]},
+  79:{b:[
+     {q:"Todd",s:"knight b1"},
+     {q:"Claude",s:"Nb1 is the only move that stops the pawn, and it does so by physically sitting on the promotion square rather than guarding it."}]},
+  80:{b:["White's b5 pawn is undefended - the a5 pawn guards b6, not b5 - so Rxb5 is threatened while White's king stays locked out of the queenside."]},
+  81:{h:"Cover and counter-attack",b:[
+     {q:"Todd",s:"Knight c3"},
+     "It defends b5 and hits the rook on d5 at the same time, and no black piece can take the knight."]},
+  82:{b:[
+     "Back to hitting the knight. Claude also volunteered a downgrade of its own position:",
+     {q:"Claude",s:"Fair warning that this is not a clean win for me: your a5 pawn is genuinely fast, and my rook can't be tied to the knight and stop that pawn at the same time. This may well end up a draw."}]},
+  83:{tag:"key",h:"The move that won the game",b:[
+     {q:"Todd",s:"pawn b6, if you take the knight, my next move is b7"},
+     {q:"Claude",s:"That was your best move of the game so far - and it's a trap. Rxc3 wins a knight and loses."},
+     "The point: after b7 the pawn is one step from queening, and there is nowhere for the rook to stop it. The eighth rank is out, because a pawn on b7 covers both a8 and c8. The b-file is out, because Black's own pawn on b3 sits in the way. Claude checked every rook move from c3 and none of them held."]},
+  84:{b:["Heading for b4, the one square that freezes both White pawns: b7 there would be met by Rxb7, and a6 would abandon b6."]},
+  85:{h:"Todd calls the finish",b:[
+     {q:"Todd",s:"okay nice. i think i'm getting some gains on you. I play pawn b7, if you play Rook b4, then i play a6"}]},
+  86:{b:["The rook attacks b7, which is undefended, so a6 is forced. Claude had already conceded the evaluation two moves earlier."]},
+  87:{tag:"key",h:"The trap closes",b:[
+     "With a6 guarding b7, White threatens a7 - and two connected pawns on the seventh rank beat a lone rook. The rook can only take one of them, and the other queens: a8=Q Rxa8 bxa8=Q."]},
+  88:{tag:"error",h:"Claude explains its own loss",b:[
+     {q:"Claude",s:"You should know: your plan wins, and I don't have a defense. My rook is trapped in a two-square prison. Only b5 and b6 stop b8=Q, because my own b3 pawn blocks the file from below. And the only squares that would control a7 are a1-a5; from b4 the only one reachable was a4, which your knight covers."},
+     "Rb6 is a last practical try, attacking the undefended a6 pawn in the hope of a slip."]},
+  89:{tag:"key",h:"Black resigns",b:[
+     {q:"Todd",s:"you are allowed to resign, not saying that to be cocky, i'm just letting you know that we don't have to play this out if you don't want to"},
+     {q:"Claude",s:"You're not being cocky - it's lost, and the right thing is to acknowledge it rather than make you prove it. I resign. Good game - you won it fairly."},
+     {q:"Claude",s:"You won it strategically. Not the endgame blunder you might expect - I never made a losing tactical error after move 7."},
+     {q:"Todd",s:"legitimately very impressive, i remember playing against o3 and older reasoning models and having them be kind of terrible"}]}
+};
+
+const GLYPH={k:"\u265A",q:"\u265B",r:"\u265C",b:"\u265D",n:"\u265E",p:"\u265F"};
+const VAL={p:1,n:3,b:3,r:5,q:9,k:0};
+const FILES="abcdefgh";
+
+function boardFromFen(fen){
+  const rows=fen.split(" ")[0].split("/"), out={};
+  rows.forEach((row,i)=>{
+    const rank=8-i; let f=0;
+    for(const ch of row){
+      if(/\d/.test(ch)) f+=+ch;
+      else { out[FILES[f]+rank]=ch; f++; }
+    }
+  });
+  return out;
+}
+function materialFromFen(fen){
+  let w=0,b=0;
+  for(const ch of fen.split(" ")[0]) if(/[a-zA-Z]/.test(ch)){
+    const v=VAL[ch.toLowerCase()]; if(ch===ch.toUpperCase()) w+=v; else b+=v;
+  }
+  return {w,b};
+}
+
+let idx=0;
+const boardEl=document.getElementById("board");
+const annoEl=document.getElementById("anno");
+const sheetEl=document.getElementById("sheet");
+
+function drawBoard(){
+  const p=PLIES[idx], pieces=boardFromFen(p.fen);
+  boardEl.innerHTML="";
+  for(let rank=8; rank>=1; rank--){
+    for(let f=0; f<8; f++){
+      const name=FILES[f]+rank;
+      const cell=document.createElement("div");
+      // a1 is DARK: with f zero-indexed, (rank + f) odd => dark
+      cell.className="sq "+(((rank+f)%2)?"d":"l")+((name===p.from||name===p.to)?" hl":"");
+      if(rank===1){ const c=document.createElement("span"); c.className="co f"; c.textContent=FILES[f]; cell.appendChild(c); }
+      if(f===0){ const c=document.createElement("span"); c.className="co r"; c.textContent=rank; cell.appendChild(c); }
+      const pc=pieces[name];
+      if(pc){
+        const el=document.createElement("span");
+        el.className="pc "+(pc===pc.toUpperCase()?"w":"b");
+        el.textContent=GLYPH[pc.toLowerCase()];
+        cell.appendChild(el);
+      }
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function drawAnno(){
+  const p=PLIES[idx];
+  if(idx===0){
+    annoEl.innerHTML=`<div class="anno-head"><span class="san">Starting position</span></div>
+      <p>Todd played White, Claude Opus 5 played Black. Moves were typed into a chat window; a live board
+      rendered the position for Todd while Claude read an ASCII board, a FEN and the full legal-move list.</p>
+      <p>Press <b>Next</b> or use the arrow keys.</p>`;
+    return;
+  }
+  const moveNo=Math.ceil(p.n/2), white=(p.n%2===1);
+  const a=ANNO[p.n];
+  let html=`<div class="anno-head">
+      <span class="movenum">${moveNo}.${white?"":".."}</span>
+      <span class="san">${p.san}</span>
+      <span class="side">${white?"Todd &middot; White":"Claude &middot; Black"}</span>
+      ${a&&a.tag?`<span class="chip ${a.tag}">${{error:"Mistake",key:"Turning point",good:"Good move",tool:"About the tools"}[a.tag]}</span>`:""}
+    </div>`;
+  if(a){
+    if(a.h) html+=`<h3>${a.h}</h3>`;
+    else if(a.t) html+=`<h3>${a.t}</h3>`;
+    for(const item of (a.b||[])){
+      if(typeof item==="string") html+=`<p>${item}</p>`;
+      else html+=`<div class="quote"><span class="who">${item.q}</span><p>&ldquo;${item.s}&rdquo;</p></div>`;
+    }
+  } else {
+    html+=`<p style="color:var(--soft)">Nothing notable was said here. Step forward for the next annotated moment.</p>`;
+  }
+  annoEl.innerHTML=html;
+}
+
+function drawSheet(){
+  sheetEl.innerHTML="";
+  for(let n=1;n<PLIES.length;n+=2){
+    const row=document.createElement("div"); row.className="row";
+    const num=document.createElement("span"); num.className="n"; num.textContent=Math.ceil(n/2)+".";
+    row.appendChild(num);
+    [n,n+1].forEach(i=>{
+      if(i>=PLIES.length){ row.appendChild(document.createElement("span")); return; }
+      const a=document.createElement("a");
+      a.href="#"; a.textContent=PLIES[i].san; a.dataset.i=i;
+      const tag=ANNO[i]&&ANNO[i].tag;
+      if(tag==="error") a.classList.add("mark-error");
+      else if(tag==="key") a.classList.add("mark-key");
+      a.onclick=e=>{e.preventDefault(); go(i,{showBoard:true});};
+      row.appendChild(a);
+    });
+    sheetEl.appendChild(row);
+  }
+}
+
+function drawRibbon(){
+  const c=document.getElementById("ribbon"), ctx=c.getContext("2d");
+  const cs=getComputedStyle(document.documentElement);
+  const accent=cs.getPropertyValue("--accent").trim();
+  const rule=cs.getPropertyValue("--rule").trim();
+  const ink=cs.getPropertyValue("--ink").trim();
+  const W=c.width, H=c.height, mid=H/2, maxDiff=6;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle=rule; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,mid+.5); ctx.lineTo(W,mid+.5); ctx.stroke();
+  const pts=PLIES.map((p,i)=>{
+    const m=materialFromFen(p.fen);
+    const d=Math.max(-maxDiff,Math.min(maxDiff,m.b-m.w));
+    return {x:i/(PLIES.length-1)*W, y:mid-(d/maxDiff)*(mid-6)};
+  });
+  ctx.beginPath(); ctx.moveTo(0,mid);
+  pts.forEach(p=>ctx.lineTo(p.x,p.y));
+  ctx.lineTo(W,mid); ctx.closePath();
+  ctx.fillStyle=accent; ctx.globalAlpha=.18; ctx.fill(); ctx.globalAlpha=1;
+  ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));
+  ctx.strokeStyle=accent; ctx.lineWidth=1.6; ctx.stroke();
+  const cur=pts[idx];
+  ctx.beginPath(); ctx.moveTo(cur.x,0); ctx.lineTo(cur.x,H);
+  ctx.strokeStyle=ink; ctx.lineWidth=1; ctx.globalAlpha=.55; ctx.stroke(); ctx.globalAlpha=1;
+  ctx.beginPath(); ctx.arc(cur.x,cur.y,3.4,0,7); ctx.fillStyle=ink; ctx.fill();
+  const m=materialFromFen(PLIES[idx].fen), d=m.b-m.w;
+  document.getElementById("matnow").textContent =
+    d===0 ? "level" : (d>0 ? "Black +"+d : "White +"+(-d));
+}
+
+function go(i,opts){
+  idx=Math.max(0,Math.min(PLIES.length-1,i));
+  drawBoard(); drawAnno(); drawRibbon();
+  document.getElementById("plylabel").textContent="Step "+idx+" of "+(PLIES.length-1);
+  sheetEl.querySelectorAll("a").forEach(a=>a.classList.toggle("on",+a.dataset.i===idx));
+  document.getElementById("prev").disabled=idx===0;
+  document.getElementById("first").disabled=idx===0;
+  document.getElementById("next").disabled=idx===PLIES.length-1;
+  document.getElementById("last").disabled=idx===PLIES.length-1;
+  // Never scroll while simply stepping through moves. Only jump to the board when
+  // the user picked a move from somewhere else on the page and needs to see it.
+  if(opts&&opts.showBoard){
+    const study=document.querySelector(".study");
+    const r=study.getBoundingClientRect();
+    const off=r.top<0||r.bottom>innerHeight;
+    if(off) study.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+}
+
+document.getElementById("next").onclick=()=>go(idx+1);
+document.getElementById("prev").onclick=()=>go(idx-1);
+document.getElementById("first").onclick=()=>go(0);
+document.getElementById("last").onclick=()=>go(PLIES.length-1);
+window.addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight"){e.preventDefault();go(idx+1);}
+  if(e.key==="ArrowLeft"){e.preventDefault();go(idx-1);}
+});
+
+const JUMPS=[[0,"Start"],[14,"7...Bxc5 &mdash; the error"],[16,"8...Nd7 &mdash; the save"],[29,"15.Qa6"],[41,"21.Nc5"],[66,"33...Nxd3 &mdash; the fork"],[68,"Material flips"],[70,"35...Rd1 &mdash; the pin"],[83,"42.b6 &mdash; the winner"],[89,"Resignation"]];
+const jumpsEl=document.getElementById("jumps");
+JUMPS.forEach(([i,label])=>{
+  const b=document.createElement("button");
+  b.innerHTML=label; b.onclick=()=>go(i,{showBoard:true});
+  jumpsEl.appendChild(b);
+});
+
+const themeBtn=document.getElementById("theme");
+themeBtn.onclick=()=>{
+  const cur=document.documentElement.getAttribute("data-theme");
+  const dark=cur ? cur==="dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", dark?"light":"dark");
+  drawRibbon();
+};
+
+drawSheet(); go(0);
+</script>
